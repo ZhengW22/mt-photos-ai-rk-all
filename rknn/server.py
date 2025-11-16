@@ -28,7 +28,7 @@ on_linux = sys.platform.startswith('linux')
 load_dotenv()
 app = FastAPI()
 api_auth_key = os.getenv("API_AUTH_KEY", "mt_photos_ai_extra")
-http_port = int(os.getenv("HTTP_PORT", "8060"))
+http_port = 8060
 server_restart_time = int(os.getenv("SERVER_RESTART_TIME", "300"))
 # env_use_dml = os.getenv("MT_USE_DML", "on") == "on" # 是否启用dml加速，当使用onnxruntime-directml加速时，使用这行
 env_use_dml = False
