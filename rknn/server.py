@@ -41,9 +41,7 @@ clip_img_models = queue.Queue()
 clip_txt_models = queue.Queue()
 restart_timer = None
 
-face_workers = 3
 face_detector_backend = os.getenv("FACE_DETECTOR_BACKEND", "inspireface_rknn_gundam")
-face_recognition_model = os.getenv("FACE_RECOGNITION_MODEL", "Gundam_RK3588")
 facial_min_score = float(os.getenv("FACE_MIN_SCORE", "0.5"))
 facial_max_distance = float(os.getenv("FACE_MAX_DISTANCE", "0.5"))
 face_task_queue: "queue.Queue[tuple[str, bytes, str | None]]" = queue.Queue()
@@ -73,11 +71,22 @@ class LazyModelSlot:
     def get_model(self):
         return self.ensure_loaded()
 
+# 芯片型号配置：支持 rk3588（3核NPU）和 rk3568（1核NPU）
+RKNN_TARGET = os.getenv("RKNN_TARGET", "rk3588")
+if RKNN_TARGET == "rk3568":
+    NPU_CORE_COUNT = 1
+    _default_face_model = "Gundam_RK356X"
+else:
+    NPU_CORE_COUNT = 3
+    _default_face_model = "Gundam_RK3588"
+
+face_workers = NPU_CORE_COUNT
+face_recognition_model = os.getenv("FACE_RECOGNITION_MODEL", _default_face_model)
+
 # RKNN OCR model paths
-DET_MODEL_PATH = os.path.join(os.path.dirname(__file__), 'models', 'ppocrv4_det.rknn')
-REC_MODEL_PATH = os.path.join(os.path.dirname(__file__), 'models', 'ppocrv4_rec.rknn')
+DET_MODEL_PATH = os.path.join(os.path.dirname(__file__), 'models', RKNN_TARGET, 'ppocrv4_det.rknn')
+REC_MODEL_PATH = os.path.join(os.path.dirname(__file__), 'models', RKNN_TARGET, 'ppocrv4_rec.rknn')
 CHARACTER_DICT_PATH = os.path.join(os.path.dirname(__file__), 'models', 'ppocr_keys_v1.txt')
-RKNN_TARGET = "rk3588"
 
 class ClipTxtRequest(BaseModel):
     text: str
@@ -91,8 +100,8 @@ class FaceWorker(threading.Thread):
 
     @staticmethod
     def _build_core_mask(worker_idx: int) -> int:
-        # RK3588 提供 3 个 NPU 核心，超出部分重复使用
-        mapped_idx = worker_idx % 3
+        # 按实际 NPU 核心数取模，避免超出范围
+        mapped_idx = worker_idx % NPU_CORE_COUNT
         return 1 << mapped_idx
 
     def run(self):
@@ -181,8 +190,10 @@ class FaceWorker(threading.Thread):
 async def startup_event():
     global face_worker_threads
     # Initialize and populate the model queues
-    for i in range(3):
-        core_mask = [RKNNLite.NPU_CORE_0, RKNNLite.NPU_CORE_1, RKNNLite.NPU_CORE_2][i]
+    _all_cores = [RKNNLite.NPU_CORE_0, RKNNLite.NPU_CORE_1, RKNNLite.NPU_CORE_2]
+    logging.info("Starting with RKNN_TARGET=%s, NPU_CORE_COUNT=%d", RKNN_TARGET, NPU_CORE_COUNT)
+    for i in range(NPU_CORE_COUNT):
+        core_mask = _all_cores[i]
         
         # OCR model
         ocr_model = TextSystem(
