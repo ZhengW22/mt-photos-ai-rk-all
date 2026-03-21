@@ -71,6 +71,9 @@ class LazyModelSlot:
     def get_model(self):
         return self.ensure_loaded()
 
+# 仅这些平台支持 core_mask 参数
+_CORE_MASK_SUPPORTED = {'rk3588', 'rk3576'}
+
 # 芯片型号配置：支持 rk3588（3核NPU）和 rk3568（1核NPU）
 RKNN_TARGET = os.getenv("RKNN_TARGET", "rk3588")
 if RKNN_TARGET == "rk3568":
@@ -110,7 +113,7 @@ class FaceWorker(threading.Thread):
 
     def _init_model(self):
         try:
-            if self.core_mask:
+            if self.core_mask and RKNN_TARGET in _CORE_MASK_SUPPORTED:
                 isf.set_rknn_core_mask(self.core_mask)
             isf.reload(face_recognition_model)
             opt = isf.HF_ENABLE_QUALITY | isf.HF_ENABLE_FACE_RECOGNITION

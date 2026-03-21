@@ -5,6 +5,9 @@ from PIL import Image, ImageFile
 from typing import Union, List
 from rknnlite.api import RKNNLite
 
+_CORE_MASK_SUPPORTED = {'rk3588', 'rk3576'}
+_rknn_target = os.getenv("RKNN_TARGET", "rk3588")
+
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 current_folder = os.path.dirname(os.path.abspath(__file__))
@@ -58,7 +61,10 @@ def load_img_model(use_dml=None, core_mask=7): # use_dml 参数不再需要，�
     print("--> Loading RKNN Image Model")
     engine = RKNNLite()
     engine.load_rknn(img_rknn_model_path)
-    ret = engine.init_runtime(core_mask=core_mask) # For NPU_CORE_0_1_2
+    if _rknn_target in _CORE_MASK_SUPPORTED:
+        ret = engine.init_runtime(core_mask=core_mask)
+    else:
+        ret = engine.init_runtime()
     if ret != 0:
         print("Init RKNN image runtime failed.")
         exit(ret)
@@ -77,7 +83,10 @@ def load_txt_model(use_dml=None, core_mask=7): # use_dml 参数不再需要
     print("--> Loading RKNN Text Model")
     engine = RKNNLite()
     engine.load_rknn(txt_rknn_model_path)
-    ret = engine.init_runtime(core_mask=core_mask) # For NPU_CORE_0_1_2
+    if _rknn_target in _CORE_MASK_SUPPORTED:
+        ret = engine.init_runtime(core_mask=core_mask)
+    else:
+        ret = engine.init_runtime()
     if ret != 0:
         print("Init RKNN text runtime failed.")
         exit(ret)

@@ -1,5 +1,8 @@
 from rknnlite.api import RKNNLite
 
+# 仅这些平台支持 core_mask 参数
+_CORE_MASK_SUPPORTED = {'rk3588', 'rk3576'}
+
 
 class RKNN_model_container():
     def __init__(self, model_path, target=None, device_id=None, core_mask=RKNNLite.NPU_CORE_AUTO) -> None:
@@ -9,10 +12,10 @@ class RKNN_model_container():
         rknn.load_rknn(model_path)
 
         print('--> Init runtime environment')
-        if target==None:
-            ret = rknn.init_runtime()
-        else:
+        if target in _CORE_MASK_SUPPORTED:
             ret = rknn.init_runtime(core_mask=core_mask)
+        else:
+            ret = rknn.init_runtime()
         if ret != 0:
             print('Init runtime environment failed')
             exit(ret)
