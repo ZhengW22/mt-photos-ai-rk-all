@@ -20,7 +20,12 @@ from .utils.db_postprocess import DBPostProcess, DetPostProcess
 from .rknn_executor import RKNN_model_container
 
 
-DET_INPUT_SHAPE = [480, 480] # h,w
+# rk3568 模型使用更大的输入尺寸
+_rknn_target = os.getenv("RKNN_TARGET", "rk3588")
+if _rknn_target in ("rk3568", "rk3566", "rk356x"):
+    DET_INPUT_SHAPE = [1280, 1280]  # h,w - rk3568 模型编译时使用的尺寸
+else:
+    DET_INPUT_SHAPE = [480, 480]  # h,w - rk3588 默认尺寸
 
 PRE_PROCESS_CONFIG = [
         {
@@ -69,6 +74,7 @@ class TextDetector:
         return img
 
     def run(self, img):
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         model_input = self.preprocess({'image':img})
         # Add batch dimension for RKNN inference (needs 4D input)
         input_data = np.expand_dims(model_input['image'], axis=0)
